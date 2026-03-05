@@ -33,6 +33,6 @@ jobs:
         run: |
           git config --global user.name "Bot"
           git config --global user.email "bot@github.com"
-          # 只有当 last_news.txt 真的发生变化时才提交，防止死循环
-          git add last_news.txt
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update news state" && git push)
+          # 确保添加的是新的状态文件
+          git add last_event_count.txt
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update event count" && git push)
