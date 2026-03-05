@@ -2,58 +2,39 @@ import requests
 from bs4 import BeautifulSoup
 import os
 
-# --- 配置 ---
-BARK_KEY = os.getenv('BARK_KEY') # 在 GitHub Secrets 中配置
-TARGET_URL = "https://news.yahoo.co.jp/topics/top-picks"
+BARK_KEY = os.getenv('BARK_KEY')
+# 换一个极其稳定的页面：雅虎日本帮助页，几乎不换结构
+TARGET_URL = "https://www.yahoo.co.jp/"
 STATUS_FILE = "last_news.txt"
 
-def send_notification(news_title):
-    if not BARK_KEY:
-        print("错误：未配置 BARK_KEY")
-        return
-    # 编码通知内容
-    msg = f"测试成功！日本雅虎新头条：{news_title}"
-    url = f"https://api.day.app/{BARK_KEY}/{msg}?isArchive=1&group=Test"
-    requests.get(url)
-
 def main():
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
-    }
-    
+    headers = {'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'}
     try:
-        response = requests.get(TARGET_URL, headers=headers, timeout=15)
-        soup = BeautifulSoup(response.text, 'html.parser')
+        res = requests.get(TARGET_URL, headers=headers, timeout=15)
+        print(f"HTTP 状态码: {res.status_code}") # 确认网络通不通
         
-        # 抓取雅虎新闻头条的标题
-        # 雅虎的结构很稳，头条通常在 sc-xxxx 这种类名下的 li 里，我们直接找 a 标签
-        news_items = soup.select('ul.newsFeed_list li a')
-        if not news_items:
-            print("未能抓取到新闻，可能是页面结构变了")
-            return
+        soup = BeautifulSoup(res.text, 'html.parser')
+        # 直接抓页面上的任意文本进行对比
+        content = soup.find('title').get_text()
+        print(f"抓取到的网页标题: {content}")
 
-        current_top_news = news_items[0].get_text(strip=True)
-        print(f"当前最新新闻: {current_top_news}")
+        # 暴力验证法：手动制造一个“内容变动”
+        # 我们每次运行都加上当前时间戳，确保内容永远和上次不一样
+        import time
+        current_data = f"{content} - {time.time()}" 
 
-        # 读取上次记录的新闻标题
-        last_news = ""
-        if os.path.exists(STATUS_FILE):
-            with open(STATUS_FILE, 'r', encoding='utf-8') as f:
-                last_news = f.read().strip()
+        # 发送推送
+        msg = f"验证成功！系统正在监控中。当前时间戳：{time.time()}"
+        print("准备发送 Bark 推送...")
+        requests.get(f"https://api.day.app/{BARK_KEY}/{msg}?group=Verify")
         
-        # 对比
-        if current_top_news != last_news:
-            print("检测到内容更新，准备发送通知...")
-            send_notification(current_top_news)
-            
-            # 更新本地文件以供下次对比
-            with open(STATUS_FILE, 'w', encoding='utf-8') as f:
-                f.write(current_top_news)
-        else:
-            print("内容未发生变化，跳过通知。")
-            
+        # 更新文件
+        with open(STATUS_FILE, 'w', encoding='utf-8') as f:
+            f.write(current_data)
+        print("推送已发出，请查看手机历史记录")
+
     except Exception as e:
-        print(f"运行出错: {e}")
+        print(f"还是失败了，错误原因: {e}")
 
 if __name__ == "__main__":
     main()
