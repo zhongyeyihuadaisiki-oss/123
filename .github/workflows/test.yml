@@ -1,16 +1,15 @@
-name: JP News Test Monitor
+name: Wuthering Waves Monitor
 
 on:
   schedule:
-    # 这里的 cron 是 UTC 时间。'*/5 * * * *' 表示每 5 分钟执行一次
-    - cron: '*/5 * * * *'
-  workflow_dispatch: # 这一行非常重要，它让你能在网页上手动点“运行”按钮
+    - cron: '*/5 * * * *'  # 每5分钟巡逻一次
+  workflow_dispatch:      # 允许手动运行
 
 jobs:
-  run_test:
+  run_monitor:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # 允许脚本修改并提交 last_news.txt
+      contents: write     # 必须开启，否则无法保存监控状态
 
     steps:
       - name: Checkout code
@@ -33,6 +32,8 @@ jobs:
         run: |
           git config --global user.name "Bot"
           git config --global user.email "bot@github.com"
-          # 确保添加的是新的状态文件
+          # 检查：确保这里的文件名和 Python 脚本里 STATUS_FILE 定义的一致
+          # 建议统一使用 last_event_count.txt
+          touch last_event_count.txt 
           git add last_event_count.txt
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update event count" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update state" && git push)
