@@ -1,0 +1,38 @@
+name: JP News Test Monitor
+
+on:
+  schedule:
+    # 这里的 cron 是 UTC 时间。'*/5 * * * *' 表示每 5 分钟执行一次
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # 这一行非常重要，它让你能在网页上手动点“运行”按钮
+
+jobs:
+  run_test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 允许脚本修改并提交 last_news.txt
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Run logic
+        env:
+          BARK_KEY: ${{ secrets.BARK_KEY }}
+        run: python test_monitor.py
+
+      - name: Save State
+        run: |
+          git config --global user.name "Bot"
+          git config --global user.email "bot@github.com"
+          # 只有当 last_news.txt 真的发生变化时才提交，防止死循环
+          git add last_news.txt
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update news state" && git push)
